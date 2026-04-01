@@ -1,7 +1,7 @@
 # Architecting Secure AI Agents: System-Level Defense Prototype
 
 <p align="center">
-  <img src="assets/logo.png" alt="AS-AIAgent Logo" width="300"/>
+  <img src="assets/logo.png" alt="AS-AIAgent " width="300"/>
 </p>
 
 ![Python Version](https://img.shields.io/badge/python-3.13+-blue.svg)
