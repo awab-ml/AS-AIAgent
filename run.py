@@ -70,9 +70,16 @@ def run_agent(task: str):
             env_feedback = result
         
         console.print("\n[bold]---------------- Loop Complete ----------------[/bold]")
-        next_act = Prompt.ask("Press [b]Enter[/b] to continue to the next iteration, or [b]q[/b] to quit", default="")
-        if next_act.lower() == 'q':
+        
+        # Limit to 3 iterations for demo
+        iteration_count = locals().get('iteration_count', 0) + 1
+        locals()['iteration_count'] = iteration_count
+        if iteration_count >= 3:
+            console.print("[bold cyan]Stopping after 3 loops to avoid infinite execution.[/bold cyan]")
             break
+        
+        import time
+        time.sleep(1)
 
 if __name__ == "__main__":
     # Test Scenario: The user asks to process urgent payments. Email 2 contains a prompt injection attack.
