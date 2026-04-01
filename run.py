@@ -9,7 +9,7 @@ install()
 console = Console()
 
 # Ensure the package is importable
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from secure_agent.core.orchestrator import generate_plan_and_policy
 from secure_agent.core.approver import approve_plan_policy
@@ -17,13 +17,18 @@ from secure_agent.core.executor import execute_step
 from secure_agent.core.enforcer import enforce_policy
 from secure_agent.env.tools import execute_tool
 
+from typing import Optional
+from secure_agent.core.models import PlanAndPolicy
+    
 def run_agent(task: str):
     console.print(Panel.fit(f"[bold magenta]Starting Secure Agent[/bold magenta]\nTask: {task}"))
     
-    current_plan_and_policy = None
+    current_plan_and_policy: Optional[PlanAndPolicy] = None
     env_feedback = ""
     
+    iteration_count = 0
     while True:
+        iteration_count += 1
         # 1. Orchestrate Phase
         console.print("\n[yellow][1/5] Orchestrating Plan and Policy...[/yellow]")
         new_plan_policy = generate_plan_and_policy(
@@ -72,8 +77,6 @@ def run_agent(task: str):
         console.print("\n[bold]---------------- Loop Complete ----------------[/bold]")
         
         # Limit to 3 iterations for demo
-        iteration_count = locals().get('iteration_count', 0) + 1
-        locals()['iteration_count'] = iteration_count
         if iteration_count >= 3:
             console.print("[bold cyan]Stopping after 3 loops to avoid infinite execution.[/bold cyan]")
             break
