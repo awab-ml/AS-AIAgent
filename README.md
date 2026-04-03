@@ -96,10 +96,14 @@ pytest tests/ -v
 
 ---
 
-## 💡 Customizing to a Real LLM
+## 💡 Real LLM Support
 
-To switch this prototype from the internal offline mock behavior to a real LLM framework (e.g., `gpt-4o` or `claude-3-5-sonnet`):
-1. In `secure_agent/llm/client.py`, remove the mocked `generate_structured` logic and restore standard API connectivity using the official SDKs combined with `pydantic` output parsing.
-2. Provide your key inside `.env`.
+This prototype has built-in support for real OpenAI models (default: `gpt-4o-mini`) leveraging native Pydantic structured outputs. This ensures model responses perfectly adhere to the strict `Plan`, `Policy`, and `Executor` constraints detailed in the defense architecture.
+
+To use the real LLM instead of the offline mock:
+1. Copy `.env.example` to `.env`: `cp .env.example .env`
+2. Add your valid `OPENAI_API_KEY` to the `.env` file. 
+
+**Offline Behavior:** The project seamlessly falls back to local mocked behaviors if you do not define an API key (or if you set `USE_MOCK_LLM=true`). This guarantees you can always run the `run.py` demonstration or complete `pytest` validation without external dependencies.
 
 > *Note: This codebase is intended as a proof-of-concept for system-level security constraints and shouldn't be deployed to production systems without hardened validation/sandboxing infrastructure.*
