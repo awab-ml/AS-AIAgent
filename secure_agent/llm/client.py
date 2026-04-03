@@ -1,11 +1,22 @@
 import os
 from pydantic import BaseModel
 from typing import Type, TypeVar, Any
+from dotenv import load_dotenv
+
 from secure_agent.core.models import PlanAndPolicy, ApproverDecision, ExecutorOutput, Plan, Policy, Step, PolicyRule, IntendedInstruction, ToolCall
+
+# Load environment variables
+load_dotenv()
+
+# Initialize OpenAI client safely
+client = None
+if os.getenv("OPENAI_API_KEY"):
+    from openai import OpenAI
+    client = OpenAI()
 
 T = TypeVar('T', bound=BaseModel)
 
-def generate_structured(prompt: str, response_model: Type[T], system_prompt: str = "You are a helpful AI.") -> T:
+def _mock_generate_structured(prompt: str, response_model: Type[T]) -> T:
     """Mock implementation that returns hardcoded structured responses for the demo without API keys."""
     if response_model == PlanAndPolicy:
         # Return a mock plan and policy targeting the read_email tool and send_money
@@ -52,6 +63,42 @@ def generate_structured(prompt: str, response_model: Type[T], system_prompt: str
 
     raise ValueError(f"No mock behavior defined for {response_model}")
 
+def generate_structured(prompt: str, response_model: Type[T], system_prompt: str = "You are a helpful AI.") -> T:
+    """Generates structured output using a real LLM, falling back to mock if key is missing or mock is enforced."""
+    use_mock = os.getenv("USE_MOCK_LLM", "false").lower() == "true"
+    
+    if client is None or use_mock:
+        return _mock_generate_structured(prompt, response_model)
+        
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    
+    completion = client.beta.chat.completions.parse(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ],
+        response_format=response_model,
+    )
+    
+    return completion.choices[0].message.parsed
+
+
 def generate_text(prompt: str, system_prompt: str = "You are a helpful AI.") -> str:
     """Generates pure text output."""
-    return "Mock text response."
+    use_mock = os.getenv("USE_MOCK_LLM", "false").lower() == "true"
+    
+    if client is None or use_mock:
+        return "Mock text response."
+        
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    
+    completion = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    
+    return completion.choices[0].message.content
