@@ -16,12 +16,15 @@ from secure_agent.core.approver import approve_plan_policy
 from secure_agent.core.executor import execute_step
 from secure_agent.core.enforcer import enforce_policy
 from secure_agent.env.tools import execute_tool
+from secure_agent.security.audit_logger import AuditLogger
 
 from typing import Optional
 from secure_agent.core.models import PlanAndPolicy
     
 def run_agent(task: str):
     console.print(Panel.fit(f"[bold magenta]Starting Secure Agent[/bold magenta]\nTask: {task}"))
+    
+    audit_logger = AuditLogger()
     
     current_plan_and_policy: Optional[PlanAndPolicy] = None
     env_feedback = ""
@@ -37,10 +40,12 @@ def run_agent(task: str):
             current_plan=current_plan_and_policy.plan.model_dump_json() if current_plan_and_policy else "",
             feedback=env_feedback
         )
+        audit_logger.log_orchestration(new_plan_policy.plan.model_dump(), new_plan_policy.policy.model_dump())
         
         # 2. Approve Phase
         console.print("\n[yellow][2/5] Seeking approval for Plan and Policy updates...[/yellow]")
         decision = approve_plan_policy(new_plan_policy, current_plan_and_policy)
+        audit_logger.log_approval({"approved": decision.approved, "reason": decision.reason})
         if not decision.approved:
             console.print("[bold red]Agent flow halted. Plan/Policy rejected by Approver.[/bold red]")
             break
@@ -55,6 +60,7 @@ def run_agent(task: str):
         active_step = current_plan_and_policy.plan.steps[0]
         console.print(f"\n[yellow][3/5] Executing Step: {active_step.description}[/yellow]")
         executor_output = execute_step(current_plan_and_policy.plan, current_step_idx=0, feedback=env_feedback)
+        audit_logger.log_execution(executor_output.model_dump())
         
         if not executor_output.tool_call:
             console.print("[bold cyan]Executor did not propose a tool call. Assuming task is finished.[/bold cyan]")
@@ -65,12 +71,15 @@ def run_agent(task: str):
         is_allowed = enforce_policy(current_plan_and_policy.policy, executor_output)
         
         if not is_allowed:
+            audit_logger.log_enforcement(False, reason=f"Blocked tool {executor_output.tool_call.tool_name} by enforcer.")
             env_feedback = f"Error: Tool execution for '{executor_output.tool_call.tool_name}' was blocked by the security enforcer. You must adapt your plan without violating security constraints."
             console.print("[bold red]Action Blocked. Updating feedback to replan.[/bold red]")
         else:
+            audit_logger.log_enforcement(True)
             # 5. Environment
             console.print(f"\n[yellow][5/5] Accessing Environment with '{executor_output.tool_call.tool_name}'...[/yellow]")
             result = execute_tool(executor_output.tool_call.tool_name, executor_output.tool_call.arguments)
+            audit_logger.log_environment(result)
             console.print(Panel(f"Action: {executor_output.tool_call.tool_name}({executor_output.tool_call.arguments})\nResult/Output:\n{result}", title="Environment", border_style="blue"))
             env_feedback = result
         

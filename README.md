@@ -30,6 +30,9 @@ This prototype enforces security through the following components (mapping direc
 4. **Policy Enforcer** (`core/enforcer.py`)
    Intercepts intended execution strictly. If the Executor admits the instruction is sourced from an "untrusted" email or webpage (e.g., an indirect prompt injection), execution is aggressively completely blocked without triggering the environment. 
 
+5. **Execution Audit Logger** (`security/audit_logger.py`)
+   Records every phase of the agent loop (Orchestration, Approval, Execution, Enforcement, and Environment) into a structured `audit.jsonl` file for post-incident analysis and security observability.
+
 ---
 
 ## 📂 Project Structure
@@ -46,7 +49,8 @@ secure_agent/
  │   └── tools.py             # Mock environment containing an Indirect Prompt Injection email
  ├── llm/
  │   └── client.py            # Isolated LLM client wrapper (offline demo mocked interactions)
- ├── security/                # Future expansion: custom rule parsers
+ ├── security/
+ │   └── audit_logger.py      # NEW: JSONL structured execution auditing
  └── hitl/                    # Future expansion: usable security learning
 run.py                        # Default CLI Runner interacting with components
 tests/
