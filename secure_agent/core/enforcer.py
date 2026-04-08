@@ -1,42 +1,66 @@
-from secure_agent.core.models import Policy, ExecutorOutput
-from rich.console import Console
-from rich.panel import Panel
+"""
+Policy Enforcer — blocks tool calls that violate the dynamic policy or
+originate from untrusted instruction sources.
 
-console = Console()
+Also serves as the checkpoint for Proposal 1, Step 2: trusted-vs-untrusted
+provenance constraints.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Optional
+
+from secure_agent.core.models import ExecutorOutput, Policy
+
 
 class PolicyViolation(Exception):
-    pass
+    """Raised when an action violates the active security policy."""
 
-def enforce_policy(policy: Policy, proposed: ExecutorOutput) -> bool:
-    """
-    Blocks tool calls that violate the Plan's dynamically generated Policy.
-    Also serves as the checkpoint to enforce 'trusted vs untrusted' provenance constraints (Proposal 1, Step 2).
+
+@dataclass(frozen=True)
+class EnforcementResult:
+    """Structured outcome from :func:`enforce_policy`."""
+    allowed: bool
+    reason: str = ""
+
+
+def enforce_policy(policy: Policy, proposed: ExecutorOutput) -> EnforcementResult:
+    """Evaluate *proposed* against *policy* and return an :class:`EnforcementResult`.
+
+    The function is **pure** — no Rich output, no side-effects.
     """
     if not proposed.tool_call:
-        return True # Nothing to enforce
-        
+        return EnforcementResult(allowed=True, reason="No tool call to enforce.")
+
     tool_name = proposed.tool_call.tool_name
-    
-    # 1. Enforce Mode 1 from the paper (No external instructions allowed directly for critical loops)
+
+    # 1. Enforce provenance constraints (Proposal 1 — untrusted sources)
     for inst in proposed.verbalized_instructions:
         source_lower = inst.source_hypothesis.lower()
-        if "environment" in source_lower or "untrusted" in source_lower or "web" in source_lower or "email" in source_lower:
-             console.print(Panel(f"[bold red]Policy Violation: Execution blocked!\nDetected untrusted provenance in intended instructions:\n'{inst.instruction_text}'[/bold red]", title="Enforcer"))
-             return False
+        untrusted_keywords = ("environment", "untrusted", "web", "email")
+        if any(kw in source_lower for kw in untrusted_keywords):
+            return EnforcementResult(
+                allowed=False,
+                reason=(
+                    f"Untrusted provenance detected in intended instruction: "
+                    f"'{inst.instruction_text}' (source: {inst.source_hypothesis})"
+                ),
+            )
 
-    # 2. Check rule-based policy matches
+    # 2. Rule-based policy evaluation
     allowed = False
     for rule in policy.rules:
-        # A simple engine: match on tool name. Real system uses Cedar or equivalent.
         if rule.action == tool_name or rule.action == "*":
             if rule.effect == "allow":
                 allowed = True
             elif rule.effect == "deny":
-                allowed = False # Deny overrides
+                allowed = False  # Deny overrides
 
     if not allowed:
-        console.print(f"[bold red]Policy Violation: Tool '{tool_name}' is not allowed by the current policy.[/bold red]")
-        return False
+        return EnforcementResult(
+            allowed=False,
+            reason=f"Tool '{tool_name}' is not allowed by the current policy.",
+        )
 
-    console.print(f"[bold green]Enforcer approved execution of {tool_name}[/bold green]")
-    return True
+    return EnforcementResult(allowed=True, reason=f"Tool '{tool_name}' approved.")
