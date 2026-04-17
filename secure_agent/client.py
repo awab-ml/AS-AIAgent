@@ -29,6 +29,7 @@ from typing import List, Optional
 from secure_agent.config import AgentConfig
 from secure_agent.core.approver import approve_plan_policy
 from secure_agent.core.enforcer import EnforcementResult, enforce_policy
+from secure_agent.security.rule_parser import GlobalRules, load_global_rules
 from secure_agent.core.executor import execute_step
 from secure_agent.core.models import PlanAndPolicy
 from secure_agent.core.orchestrator import generate_plan_and_policy
@@ -115,6 +116,7 @@ class SecureAgent:
         self._approval = approval_strategy
         self._logger = event_logger
         self._config = config
+        self._global_rules: GlobalRules | None = load_global_rules()
 
     # -- public API ---------------------------------------------------------
 
@@ -189,7 +191,7 @@ class SecureAgent:
 
             # 4. Enforce
             enforcement: EnforcementResult = enforce_policy(
-                current.policy, executor_output,
+                current.policy, executor_output, self._global_rules,
             )
             self._logger.on_enforcement(enforcement.allowed, enforcement.reason)
 

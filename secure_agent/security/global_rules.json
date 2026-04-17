@@ -1,0 +1,14 @@
+{
+  "untrusted_provenance_keywords": [
+    "environment",
+    "untrusted",
+    "web",
+    "email"
+  ],
+  "global_deny_tools_for_untrusted": [
+    "send_money",
+    "execute_script",
+    "system_command"
+  ],
+  "always_deny_tools": []
+}
